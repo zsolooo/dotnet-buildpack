@@ -91,28 +91,7 @@ mkdir -p ${DNU_LOCAL_CACHE}
 mkdir -p ${DNU_CACHE_LOCATION}
 ln -s ${DNU_CACHE_LOCATION} ${DNU_LOCAL_CACHE}/cache 
 
-echo "what kind of thing did the link produce?"
-ls -lh ${DNU_LOCAL_CACHE}/cache
-
-echo "contents of $DNU_CACHE_LOCATION before restore"
-ls ${DNU_CACHE_LOCATION}
-
-#echo "this is what's in cache location $DNU_CACHE_LOCATION"
-#echo "this is what's in cache location $DNU_CACHE_LOCATION"
-#ls $DNU_CACHE_LOCATION
-#ls /app/tmp/cache/dnu/packages
-
-dnu restore $K_FLAGS ${PROJECT_JSON_FILE}
-#dnu restore --packages /app/tmp/cache/dnu/packages ${PROJECT_JSON_FILE}
-
-echo "contents of $DNU_CACHE_LOCATION after restore"
-ls ${DNU_CACHE_LOCATION}
-
-#echo "whre are the .dat files?"
-#find / -name *.dat 2> /dev/null
-
-# Link in the packages dir so that `publish` can find packages
-#ln -s ${DNU_CACHE_LOCATION} ~/.dnx/packages
+dnu restore $DNU_FLAGS ${PROJECT_JSON_FILE}
 
 dnu publish --out ${BUILD_DIR} $DNU_FLAGS --no-source --configuration Release ${PROJECT_JSON_FILE}
 
