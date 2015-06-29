@@ -66,12 +66,18 @@ fi
 touch ~/.profile
 curl -sSL https://raw.githubusercontent.com/aspnet/Home/${DNVM_BRANCH}/dnvminstall.sh \
     | sh && source ~/.dnx/dnvm/dnvm.sh
-dnvm install $DNX_VERSION -u -a default
+
+DEPLOYMENT_FILE_LOCATION=${SRC_DIR}/.deployment
+if [ $(awk -F "=" '/stable/ {print $2}' ${DEPLOYMENT_FILE_LOCATION} | tr -d ' ') != "true" ]; then
+    echo "Downloading Asp.Net vNext unstable"
+    unstable="-u"
+fi
+
+dnvm install $DNX_VERSION $unstable -a default
 
 # Add DNX to the build output
 cp -r ${DNX_USER_HOME} ${BUILD_DIR}/.
 
-DEPLOYMENT_FILE_LOCATION=${SRC_DIR}/.deployment
 if [ -n "$PROJECT" ]; then
     PROJECT_JSON_FILE=${SRC_DIR}/${PROJECT}
     echo "Project file configured in PROJECT environment variable"
