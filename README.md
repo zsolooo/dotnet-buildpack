@@ -16,4 +16,4 @@ The buildpack will detect your app as ASP.NET 5 if it has `project.json`. If the
 
 ## Notice
 1. The default DNX Version is an unstable version. So if you want to use a stable one, you should set "stable" to true in `.deployment`.
-2. If you developed a project using VS, don't forget to add the `Kestrel` dependence in `project.json`.
+2. If you developed a project using VS, don't forget to add the `Kestrel` dependence and command in `project.json`.
