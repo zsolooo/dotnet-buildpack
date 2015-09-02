@@ -84,15 +84,22 @@ mkdir -p ${DNVM_RUNTIME_LOCAL_CACHE}
 mkdir -p ${DNVM_RUNTIME_CACHE_LOCATION}
 ln -s ${DNVM_RUNTIME_CACHE_LOCATION} ${DNVM_RUNTIME_LOCAL_CACHE}/runtimes
 
-# TODO: extract DNX version from global.json
-
 DEPLOYMENT_FILE_LOCATION=${SRC_DIR}/.deployment
-if [ $(awk -F "=" '/stable/ {print $2}' ${DEPLOYMENT_FILE_LOCATION} | tr -d ' ') != "true" ]; then
-	echo "Downloading Asp.Net vNext unstable"
-	unstable="-u"
+if [ -n "$UNSTABLE_TOOLCHAIN" ]; then
+	echo "DNVM flags configured in UNSTABLE_TOOLCHAIN environment variable"
+	echo "Downloading ASP.NET 5 unstable"
+	DNVM_FLAGS="-u"
+elif [ $(awk -F "=" '/stable/ {print $2}' ${DEPLOYMENT_FILE_LOCATION} | tr -d ' ') == "false" ]; then
+	echo "DNVM flags configured in .deployment file"
+	echo "Downloading ASP.NET 5 unstable"
+	DNVM_FLAGS="-u"
+else
+	echo "Downloading ASP.NET 5 stable"
+	DNVM_FLAGS=""
 fi
 
-dnvm install $DNX_VERSION $unstable -a default
+# TODO: extract DNX version from global.json
+dnvm install $DNX_VERSION $DNVM_FLAGS -a default
 
 # Add DNX to the build output
 DNX_BUILD_LOCATION=${BUILD_DIR}/.dnx/runtimes/
