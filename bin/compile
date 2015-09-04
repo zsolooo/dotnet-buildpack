@@ -84,21 +84,26 @@ mkdir -p ${DNVM_RUNTIME_LOCAL_CACHE}
 mkdir -p ${DNVM_RUNTIME_CACHE_LOCATION}
 ln -s ${DNVM_RUNTIME_CACHE_LOCATION} ${DNVM_RUNTIME_LOCAL_CACHE}/runtimes
 
+if [ -n "$(find ${SRC_DIR}/global.json)" ]; then
+	echo "Get version from global.json"
+	DNX_VERSION=$(ruby -rjson -e "j = JSON.parse(File.open('${SRC_DIR}/global.json','r:bom|utf-8').read); unless j['sdk'].nil? ; puts j['sdk']['version'];end")
+	echo "${DNX_VERSION:=latest}"
+fi
+
 DEPLOYMENT_FILE_LOCATION=${SRC_DIR}/.deployment
 if [ -n "$UNSTABLE_TOOLCHAIN" ]; then
 	echo "DNVM flags configured in UNSTABLE_TOOLCHAIN environment variable"
-	echo "Downloading ASP.NET 5 unstable"
+	echo "Downloading ASP.NET 5 unstable $DNX_VERSION"
 	DNVM_FLAGS="-u"
 elif [ $(awk -F "=" '/stable/ {print $2}' ${DEPLOYMENT_FILE_LOCATION} | tr -d ' ') == "false" ]; then
 	echo "DNVM flags configured in .deployment file"
-	echo "Downloading ASP.NET 5 unstable"
+	echo "Downloading ASP.NET 5 unstable $DNX_VERSION"
 	DNVM_FLAGS="-u"
 else
-	echo "Downloading ASP.NET 5 stable"
+	echo "Downloading ASP.NET 5 stable $DNX_VERSION"
 	DNVM_FLAGS=""
 fi
 
-# TODO: extract DNX version from global.json
 dnvm install $DNX_VERSION $DNVM_FLAGS -a default
 
 # Add DNX to the build output
