@@ -109,7 +109,8 @@ dnvm install $DNX_VERSION $DNVM_FLAGS -a default
 # Add DNX to the build output
 DNX_BUILD_LOCATION=${BUILD_DIR}/.dnx/runtimes/
 mkdir -p ${DNX_BUILD_LOCATION}
-cp -r ~/.dnx/runtimes/`dnvm alias default` ${DNX_BUILD_LOCATION}
+DNX_VERSION=$(dnvm alias default)
+cp -r ~/.dnx/runtimes/$DNX_VERSION ${DNX_BUILD_LOCATION}
 
 if [ -n "$PROJECT" ]; then
 	PROJECT_JSON_FILE=${SRC_DIR}/${PROJECT}
@@ -132,11 +133,7 @@ ln -s ${DNU_CACHE_LOCATION} ${DNU_LOCAL_CACHE}/cache
 
 dnu restore $DNU_FLAGS ${PROJECT_JSON_FILE}
 
-dnu publish --out ${BUILD_DIR} $DNU_FLAGS --no-source --configuration Release ${PROJECT_JSON_FILE}
-
-# Clean out core-stuff that we don't need in the slug
-# mono runtime is depending on dnx451
-find ${BUILD_DIR} -iname dnxcore50 -print0 | xargs -0 rm -rf
+dnu publish --out ${BUILD_DIR} $DNU_FLAGS --no-source --configuration Release ${PROJECT_JSON_FILE} --runtime $DNX_VERSION
 
 mkdir -p ${BUILD_DIR}/.profile.d
 cp -n ${BUILDPACK_DIR}/.profile.d/* ${BUILD_DIR}/.profile.d/
