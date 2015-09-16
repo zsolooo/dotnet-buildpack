@@ -17,11 +17,10 @@ BUILDPACK_DIR=`cd $(dirname $0); cd ..; pwd`
 source $BUILDPACK_DIR/bin/util
 
 export_env_dir ${ENV_DIR}
+export CI=true
 
-: ${MONO_VERSION:="4.0.1.44"}
-: ${MONO_DOWNLOAD_LOCATION:="https://github.com/friism/mono-builder/releases/download/v${MONO_VERSION}/mono-${MONO_VERSION}.tar.gz"}
 : ${LIBUV_VERSION:="1.6.0"}
-: ${NODE_VERSION:="0.12.2"}
+: ${NODE_VERSION:="4.0.0"}
 : ${DNVM_BRANCH:="dev"}
 : ${DNX_VERSION:="latest"}
 
@@ -42,16 +41,36 @@ SRC_DIR=`mktemp -d`
 
 mkdir -p ${CACHE_DIR}
 
-echo "installing ${MONO_DOWNLOAD_LOCATION}"
-curl ${MONO_DOWNLOAD_LOCATION} -Ls | tar xz -C ${BUILD_DIR}
-# Mono expects to be running out of /app
-ln -s ${BUILD_DIR}/mono /app
+echo "ASP.NET 5 CORECLR"
 
-export PATH="/app/mono/bin:${PATH}"
-export LD_LIBRARY_PATH="/app/mono/lib:${LD_LIBRARY_PATH}"
+echo "Install package"
 
-mozroots --import --sync --quiet
-cp -r ~/.config ${BUILD_DIR}/.
+APT_CACHE_DIR="$CACHE_DIR/apt/cache"
+APT_STATE_DIR="$CACHE_DIR/apt/state"
+
+mkdir -p "$APT_CACHE_DIR/archives/partial"
+mkdir -p "$APT_STATE_DIR/lists/partial"
+
+APT_OPTIONS="-o debug::nolocking=true -o dir::cache=$APT_CACHE_DIR -o dir::state=$APT_STATE_DIR"
+
+apt-get $APT_OPTIONS update | indent
+
+apt-get $APT_OPTIONS -y --force-yes -d install libunwind8 gettext libcurl3-dev | indent
+
+mkdir -p $BUILD_DIR/.apt
+
+for DEB in $(ls -1 $APT_CACHE_DIR/archives/*.deb); do
+  topic "Installing $(basename $DEB)"
+  dpkg -x $DEB $BUILD_DIR/.apt/
+done
+
+export PATH="$PATH:$BUILD_DIR/.apt/usr/bin"
+export LD_LIBRARY_PATH="$BUILD_DIR/.apt/usr/lib/x86_64-linux-gnu:$BUILD_DIR/.apt/usr/lib/i386-linux-gnu:$BUILD_DIR/.apt/usr/lib:$LD_LIBRARY_PATH"
+export LIBRARY_PATH="$BUILD_DIR/.apt/usr/lib/x86_64-linux-gnu:$BUILD_DIR/.apt/usr/lib/i386-linux-gnu:$BUILD_DIR/.apt/usr/lib:$LIBRARY_PATH"
+export INCLUDE_PATH="$BUILD_DIR/.apt/usr/include:$INCLUDE_PATH"
+export CPATH="$INCLUDE_PATH"
+export CPPPATH="$INCLUDE_PATH"
+export PKG_CONFIG_PATH="$BUILD_DIR/.apt/usr/lib/x86_64-linux-gnu/pkgconfig:$BUILD_DIR/.apt/usr/lib/i386-linux-gnu/pkgconfig:$BUILD_DIR/.apt/usr/lib/pkgconfig:$PKG_CONFIG_PATH"
 
 # TODO: This test doesn't seen to actually work
 if [[ -n $(find . -type f -iname package.json -o -iname bower.json ) ]]
@@ -100,7 +119,7 @@ else
 	DNVM_FLAGS=""
 fi
 
-dnvm install $DNX_VERSION $DNVM_FLAGS -a default
+dnvm install $DNX_VERSION $DNVM_FLAGS -r coreclr -a default
 
 # Add DNX to the build output
 DNX_BUILD_LOCATION=${BUILD_DIR}/.dnx/runtimes/
@@ -132,13 +151,21 @@ mkdir -p ${DNU_LOCAL_CACHE}
 mkdir -p ${DNU_CACHE_LOCATION}
 ln -s ${DNU_CACHE_LOCATION} ${DNU_LOCAL_CACHE}/cache 
 
+# beta7's bug
+ruby -rjson -e "j = JSON.parse(File.open('${PROJECT_DIR}/project.json','r:bom|utf-8').read);core=j['frameworks']['dnxcore50']||'{}';j.delete('frameworks');j['frameworks']={dnxcore50:core};print(j.to_json);" > ${PROJECT_DIR}/project.tmp.json 
+mv ${PROJECT_DIR}/project.tmp.json ${PROJECT_DIR}/project.json
+
 dnu restore $DNU_FLAGS ${PROJECT_JSON_FILE}
 
 # configure some npm command during building
 export PATH="${PROJECT_DIR}/node_modules/.bin:${PATH}"
 
+echo "Publishing the app"
 # publishing with a runtime won't produce dependencies of other platform
+# Stuck on installing package using bower in Node 0.12. Why?
 dnu publish --out ${BUILD_DIR} $DNU_FLAGS --no-source --configuration Release ${PROJECT_JSON_FILE} --runtime $DNX_VERSION
+
+echo "Publish Successed"
 
 mkdir -p ${BUILD_DIR}/.profile.d
 cp -n ${BUILDPACK_DIR}/.profile.d/* ${BUILD_DIR}/.profile.d/
@@ -149,6 +176,6 @@ if [ -e ${SRC_DIR}/Procfile ]; then
 	cp ${SRC_DIR}/Procfile ${BUILD_DIR}
 else
 	cat << EOT >> ${BUILD_DIR}/Procfile
-web: ./kestrel --server.urls http://+:\$PORT
+web: ./kestrel --server.urls http://+:\$PORT &> err.txt > logs.txt
 EOT
 fi
