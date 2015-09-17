@@ -43,7 +43,7 @@ SRC_DIR=`mktemp -d`
 mkdir -p ${CACHE_DIR}
 
 DEPLOYMENT_FILE_LOCATION=${SRC_DIR}/.deployment
-if [[ $(awk -F "=" '/coreclr/ {print $2}' ${DEPLOYMENT_FILE_LOCATION} | tr -d ' ') != "false" ]]; then
+if [[ $(awk -F "=" '/coreclr/ {print $2}' ${DEPLOYMENT_FILE_LOCATION} | tr -d ' ') == "true" ]]; then
 	echo "ASP.NET 5 using CoreCLR"
 	DNX_RUNTIME="coreclr"
 	apt_install libunwind8 gettext "http://mirrors.kernel.org/ubuntu/pool/universe/libu/libuv1/libuv1_1.6.1-3_amd64.deb"
