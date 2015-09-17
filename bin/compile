@@ -19,7 +19,8 @@ source $BUILDPACK_DIR/bin/util
 export_env_dir ${ENV_DIR}
 export CI=true
 
-: ${LIBUV_VERSION:="1.6.0"}
+: ${MONO_VERSION:="4.0.1.44"}
+: ${MONO_DOWNLOAD_LOCATION:="https://github.com/friism/mono-builder/releases/download/v${MONO_VERSION}/mono-${MONO_VERSION}.tar.gz"}
 : ${NODE_VERSION:="4.0.0"}
 : ${DNVM_BRANCH:="dev"}
 : ${DNX_VERSION:="latest"}
@@ -41,36 +42,17 @@ SRC_DIR=`mktemp -d`
 
 mkdir -p ${CACHE_DIR}
 
-echo "ASP.NET 5 CORECLR"
-
-echo "Install package"
-
-APT_CACHE_DIR="$CACHE_DIR/apt/cache"
-APT_STATE_DIR="$CACHE_DIR/apt/state"
-
-mkdir -p "$APT_CACHE_DIR/archives/partial"
-mkdir -p "$APT_STATE_DIR/lists/partial"
-
-APT_OPTIONS="-o debug::nolocking=true -o dir::cache=$APT_CACHE_DIR -o dir::state=$APT_STATE_DIR"
-
-apt-get $APT_OPTIONS update | indent
-
-apt-get $APT_OPTIONS -y --force-yes -d install libunwind8 gettext libcurl3-dev | indent
-
-mkdir -p $BUILD_DIR/.apt
-
-for DEB in $(ls -1 $APT_CACHE_DIR/archives/*.deb); do
-  topic "Installing $(basename $DEB)"
-  dpkg -x $DEB $BUILD_DIR/.apt/
-done
-
-export PATH="$PATH:$BUILD_DIR/.apt/usr/bin"
-export LD_LIBRARY_PATH="$BUILD_DIR/.apt/usr/lib/x86_64-linux-gnu:$BUILD_DIR/.apt/usr/lib/i386-linux-gnu:$BUILD_DIR/.apt/usr/lib:$LD_LIBRARY_PATH"
-export LIBRARY_PATH="$BUILD_DIR/.apt/usr/lib/x86_64-linux-gnu:$BUILD_DIR/.apt/usr/lib/i386-linux-gnu:$BUILD_DIR/.apt/usr/lib:$LIBRARY_PATH"
-export INCLUDE_PATH="$BUILD_DIR/.apt/usr/include:$INCLUDE_PATH"
-export CPATH="$INCLUDE_PATH"
-export CPPPATH="$INCLUDE_PATH"
-export PKG_CONFIG_PATH="$BUILD_DIR/.apt/usr/lib/x86_64-linux-gnu/pkgconfig:$BUILD_DIR/.apt/usr/lib/i386-linux-gnu/pkgconfig:$BUILD_DIR/.apt/usr/lib/pkgconfig:$PKG_CONFIG_PATH"
+DEPLOYMENT_FILE_LOCATION=${SRC_DIR}/.deployment
+if [[ $(awk -F "=" '/coreclr/ {print $2}' ${DEPLOYMENT_FILE_LOCATION} | tr -d ' ') != "false" ]]; then
+	echo "ASP.NET 5 using CoreCLR"
+	DNX_RUNTIME="coreclr"
+	apt_install libunwind8 gettext "http://mirrors.kernel.org/ubuntu/pool/universe/libu/libuv1/libuv1_1.6.1-3_amd64.deb"
+else
+	echo "ASP.NET 5 using Mono"
+	DNX_RUNTIME="mono"
+	apt_install "http://mirrors.kernel.org/ubuntu/pool/universe/libu/libuv1/libuv1_1.6.1-3_amd64.deb"
+	install_mono
+fi
 
 # TODO: This test doesn't seen to actually work
 if [[ -n $(find . -type f -iname package.json -o -iname bower.json ) ]]
@@ -81,7 +63,7 @@ then
 		| tar xz -C ${NODE_PATH}
 	export PATH="${NODE_PATH}/node-v${NODE_VERSION}-linux-x64/bin:${PATH}"
 
-	echo "installing bower"
+	echo "Installing bower"
 	if ! hash bower 2>/dev/null; then
 		npm install -g bower
 	fi
@@ -105,12 +87,11 @@ if [ -n "$(find ${SRC_DIR}/global.json)" ]; then
 	echo "${DNX_VERSION:=latest}"
 fi
 
-DEPLOYMENT_FILE_LOCATION=${SRC_DIR}/.deployment
 if [ -n "$UNSTABLE_TOOLCHAIN" ]; then
 	echo "DNVM flags configured in UNSTABLE_TOOLCHAIN environment variable"
 	echo "Downloading ASP.NET 5 unstable $DNX_VERSION"
 	DNVM_FLAGS="-u"
-elif [ $(awk -F "=" '/stable/ {print $2}' ${DEPLOYMENT_FILE_LOCATION} | tr -d ' ') == "false" ]; then
+elif [[ $(awk -F "=" '/stable/ {print $2}' ${DEPLOYMENT_FILE_LOCATION} | tr -d ' ') == "false" ]]; then
 	echo "DNVM flags configured in .deployment file"
 	echo "Downloading ASP.NET 5 unstable $DNX_VERSION"
 	DNVM_FLAGS="-u"
@@ -119,7 +100,7 @@ else
 	DNVM_FLAGS=""
 fi
 
-dnvm install $DNX_VERSION $DNVM_FLAGS -r coreclr -a default
+dnvm install $DNX_VERSION $DNVM_FLAGS -r $DNX_RUNTIME -a default
 
 # Add DNX to the build output
 DNX_BUILD_LOCATION=${BUILD_DIR}/.dnx/runtimes/
@@ -151,9 +132,12 @@ mkdir -p ${DNU_LOCAL_CACHE}
 mkdir -p ${DNU_CACHE_LOCATION}
 ln -s ${DNU_CACHE_LOCATION} ${DNU_LOCAL_CACHE}/cache 
 
-# beta7's bug
-ruby -rjson -e "j = JSON.parse(File.open('${PROJECT_DIR}/project.json','r:bom|utf-8').read);core=j['frameworks']['dnxcore50']||'{}';j.delete('frameworks');j['frameworks']={dnxcore50:core};print(j.to_json);" > ${PROJECT_DIR}/project.tmp.json 
-mv ${PROJECT_DIR}/project.tmp.json ${PROJECT_DIR}/project.json
+
+if [ "$DNX_RUNTIME" == "coreclr" ]; then
+  # coreclr beta7's bug
+  ruby -rjson -e "j = JSON.parse(File.open('${PROJECT_DIR}/project.json','r:bom|utf-8').read);core=j['frameworks']['dnxcore50']||'{}';j.delete('frameworks');j['frameworks']={dnxcore50:core};print(j.to_json);" > ${PROJECT_DIR}/project.tmp.json 
+  mv ${PROJECT_DIR}/project.tmp.json ${PROJECT_DIR}/project.json
+fi
 
 dnu restore $DNU_FLAGS ${PROJECT_JSON_FILE}
 
@@ -170,8 +154,6 @@ echo "Publish Successed"
 mkdir -p ${BUILD_DIR}/.profile.d
 cp -n ${BUILDPACK_DIR}/.profile.d/* ${BUILD_DIR}/.profile.d/
 
-curl https://github.com/friism/libuv-builder/releases/download/v${LIBUV_VERSION}/libuv-${LIBUV_VERSION}.tar.gz -sL \
-	 | tar xz -C ${BUILD_DIR}
 if [ -e ${SRC_DIR}/Procfile ]; then
 	cp ${SRC_DIR}/Procfile ${BUILD_DIR}
 else
