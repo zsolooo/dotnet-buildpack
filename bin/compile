@@ -49,6 +49,7 @@ if [[ $(awk -F "=" '/coreclr/ {print $2}' ${DEPLOYMENT_FILE_LOCATION} | tr -d ' 
 	apt_install libunwind8 gettext "http://mirrors.kernel.org/ubuntu/pool/universe/libu/libuv1/libuv1_1.6.1-3_amd64.deb"
 else
 	echo "ASP.NET 5 using Mono"
+	[ -z "$MONO_THREADS_PER_CPU" ] && export MONO_THREADS_PER_CPU=2000
 	DNX_RUNTIME="mono"
 	apt_install "http://mirrors.kernel.org/ubuntu/pool/universe/libu/libuv1/libuv1_1.6.1-3_amd64.deb"
 	install_mono
