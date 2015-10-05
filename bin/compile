@@ -91,17 +91,17 @@ fi
 if [ -n "$UNSTABLE_TOOLCHAIN" ]; then
 	echo "DNVM flags configured in UNSTABLE_TOOLCHAIN environment variable"
 	echo "Downloading ASP.NET 5 unstable $DNX_VERSION"
-	DNVM_FLAGS="-u"
+	DNVM_FLAGS="-unstable"
 elif [[ $(awk -F "=" '/stable/ {print $2}' ${DEPLOYMENT_FILE_LOCATION} | tr -d ' ') == "false" ]]; then
 	echo "DNVM flags configured in .deployment file"
 	echo "Downloading ASP.NET 5 unstable $DNX_VERSION"
-	DNVM_FLAGS="-u"
+	DNVM_FLAGS="-unstable"
 else
 	echo "Downloading ASP.NET 5 stable $DNX_VERSION"
 	DNVM_FLAGS=""
 fi
 
-dnvm install $DNX_VERSION $DNVM_FLAGS -r $DNX_RUNTIME -a default
+dnvm install $DNX_VERSION $DNVM_FLAGS -runtime $DNX_RUNTIME -alias default
 
 # Add DNX to the build output
 DNX_BUILD_LOCATION=${BUILD_DIR}/.dnx/runtimes/
