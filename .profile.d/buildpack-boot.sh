@@ -1,4 +1,3 @@
-DNX_BIN=`find $HOME/.dnx/runtimes -type d -name bin`
 export PATH="$PATH:$HOME/mono/bin:$HOME/.apt/usr/bin:$DNX_BIN"
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$HOME/mono/lib:$HOME/.apt/usr/lib/x86_64-linux-gnu:$HOME/.apt/usr/lib/i386-linux-gnu:$HOME/.apt/usr/lib"
 export LIBRARY_PATH="$LIBRARY_PATH:$HOME/.apt/usr/lib/x86_64-linux-gnu:$HOME/.apt/usr/lib/i386-linux-gnu:$HOME/.apt/usr/lib"

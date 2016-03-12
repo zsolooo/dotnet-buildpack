@@ -19,19 +19,7 @@ source $BUILDPACK_DIR/bin/util
 export_env_dir ${ENV_DIR}
 export CI=true
 
-: ${MONO_VERSION:="4.0.1.44"}
-: ${MONO_DOWNLOAD_LOCATION:="https://github.com/friism/mono-builder/releases/download/v${MONO_VERSION}/mono-${MONO_VERSION}.tar.gz"}
-: ${NODE_VERSION:="4.0.0"}
-: ${DNVM_BRANCH:="dev"}
-: ${DNX_VERSION:="latest"}
-
-if [ -n "$BUILD_DEBUG" ]; then
-	DNU_FLAGS=""
-	echo "DNX_VERSION: ${DNX_VERSION}"
-	echo "DNVM_BRANCH: ${DNVM_BRANCH}"
-else
-	DNU_FLAGS="--quiet"
-fi
+: ${NODE_VERSION:="4.4.0"}
 
 SRC_DIR=`mktemp -d`
 # Move the app source code into temporary src dir using subshell to not leak shopt
@@ -43,17 +31,6 @@ SRC_DIR=`mktemp -d`
 mkdir -p ${CACHE_DIR}
 
 DEPLOYMENT_FILE_LOCATION=${SRC_DIR}/.deployment
-if [[ $(awk -F "=" '/coreclr/ {print $2}' ${DEPLOYMENT_FILE_LOCATION} | tr -d ' ') == "true" ]]; then
-	echo "ASP.NET 5 using CoreCLR"
-	DNX_RUNTIME="coreclr"
-	apt_install libunwind8 gettext "http://mirrors.kernel.org/ubuntu/pool/universe/libu/libuv1/libuv1_1.6.1-3_amd64.deb"
-else
-	echo "ASP.NET 5 using Mono"
-	[ -z "$MONO_THREADS_PER_CPU" ] && export MONO_THREADS_PER_CPU=2000
-	DNX_RUNTIME="mono"
-	apt_install "http://mirrors.kernel.org/ubuntu/pool/universe/libu/libuv1/libuv1_1.6.1-3_amd64.deb"
-	install_mono
-fi
 
 # TODO: This test doesn't seen to actually work
 if [[ -n $(find . -type f -iname package.json -o -iname bower.json ) ]]
@@ -70,17 +47,8 @@ then
 	fi
 fi
 
-# Install DNX
-# TODO: consider making this not dependent on GitHub being up
-touch ~/.profile
-curl -sSL https://raw.githubusercontent.com/aspnet/Home/${DNVM_BRANCH}/dnvminstall.sh \
-	| sh && source ~/.dnx/dnvm/dnvm.sh
-
-export DNVM_RUNTIME_LOCAL_CACHE="/app/.dnx"
-export DNVM_RUNTIME_CACHE_LOCATION="${CACHE_DIR}/dnx/runtimes"
-mkdir -p ${DNVM_RUNTIME_LOCAL_CACHE}
-mkdir -p ${DNVM_RUNTIME_CACHE_LOCATION}
-ln -s ${DNVM_RUNTIME_CACHE_LOCATION} ${DNVM_RUNTIME_LOCAL_CACHE}/runtimes
+# Install .NET CLI Nightly
+apt_install "http://dotnetcli.blob.core.windows.net/dotnet/beta/Installers/Latest/dotnet-ubuntu-x64.latest.deb"
 
 if [ -n "$(find ${SRC_DIR}/global.json)" ]; then
 	echo "Get version from global.json"
@@ -88,26 +56,6 @@ if [ -n "$(find ${SRC_DIR}/global.json)" ]; then
 	echo "${DNX_VERSION:=latest}"
 fi
 
-if [ -n "$UNSTABLE_TOOLCHAIN" ]; then
-	echo "DNVM flags configured in UNSTABLE_TOOLCHAIN environment variable"
-	echo "Downloading ASP.NET 5 unstable $DNX_VERSION"
-	DNVM_FLAGS="-unstable"
-elif [[ $(awk -F "=" '/stable/ {print $2}' ${DEPLOYMENT_FILE_LOCATION} | tr -d ' ') == "false" ]]; then
-	echo "DNVM flags configured in .deployment file"
-	echo "Downloading ASP.NET 5 unstable $DNX_VERSION"
-	DNVM_FLAGS="-unstable"
-else
-	echo "Downloading ASP.NET 5 stable $DNX_VERSION"
-	DNVM_FLAGS=""
-fi
-
-dnvm install $DNX_VERSION $DNVM_FLAGS -runtime $DNX_RUNTIME -alias default
-
-# Add DNX to the build output
-DNX_BUILD_LOCATION=${BUILD_DIR}/.dnx/runtimes/
-mkdir -p ${DNX_BUILD_LOCATION}
-DNX_VERSION=$(dnvm alias default)
-cp -r ~/.dnx/runtimes/$DNX_VERSION ${DNX_BUILD_LOCATION}
 
 if [ -n "$PROJECT" ]; then
 	PROJECT_JSON_FILE=${SRC_DIR}/${PROJECT}
@@ -127,30 +75,33 @@ if [[ -f $PROJECT_JSON_FILE ]]; then
 	PROJECT_DIR=$(dirname $PROJECT_JSON_FILE)
 fi
 
-export DNU_LOCAL_CACHE="/app/.local/share/dnu"
-export DNU_CACHE_LOCATION="${CACHE_DIR}/dnu/cache"
-mkdir -p ${DNU_LOCAL_CACHE}
-mkdir -p ${DNU_CACHE_LOCATION}
-ln -s ${DNU_CACHE_LOCATION} ${DNU_LOCAL_CACHE}/cache 
+PROJECT_DIR_NAME=$(basename $PROJECT_DIR)
 
+PROJECT_NAME=$(ruby -rjson -e "j = JSON.parse(File.open('${PROJECT_DIR}/project.json','r:bom|utf-8').read); unless j['compilationOptions'].nil? ; puts j['compilationOptions']['outputName'];end")
+echo "${PROJECT_NAME:=$PROJECT_DIR_NAME}"
 
-if [ "$DNX_RUNTIME" == "coreclr" ]; then
-  # coreclr beta7's bug
-  ruby -rjson -e "j = JSON.parse(File.open('${PROJECT_DIR}/project.json','r:bom|utf-8').read);core=j['frameworks']['dnxcore50']||'{}';j.delete('frameworks');j['frameworks']={dnxcore50:core};print(j.to_json);" > ${PROJECT_DIR}/project.tmp.json 
-  mv ${PROJECT_DIR}/project.tmp.json ${PROJECT_DIR}/project.json
-fi
-
-dnu restore $DNU_FLAGS ${PROJECT_JSON_FILE}
+dotnet restore ${PROJECT_JSON_FILE}
 
 # configure some npm command during building
 export PATH="${PROJECT_DIR}/node_modules/.bin:${PATH}"
 
 echo "Publishing the app"
-# publishing with a runtime won't produce dependencies of other platform
-# Stuck on installing package using bower in Node 0.12. Why?
-dnu publish --out ${BUILD_DIR} $DNU_FLAGS --no-source --configuration Release ${PROJECT_JSON_FILE} --runtime $DNX_VERSION
+
+# Publish to heroku_output
+dotnet publish ${PROJECT_JSON_FILE} --output ${BUILD_DIR}/heroku_output --configuration Release
 
 echo "Publish Successed"
+
+echo "To fix some temporary bug"
+# Copy libuv.so :( it sometimes or offten lost. bug?
+#[ -f ${BUILD_DIR}/heroku_output/libuv.so ] || cp -ap ${HOME}/.nuget/packages/Microsoft.AspNetCore.Server.Kestrel/${LIBUV_VERSION}/runtimes/debian-x64/native/libuv.so ${BUILD_DIR}/heroku_output/libuv.so
+
+# It's too hard for me to read version exactly from project.lock.json. TODO
+[ -f ${BUILD_DIR}/heroku_output/libuv.so ] || cp -ap ${BUILDPACK_DIR}/patch/libuv.so ${BUILD_DIR}/heroku_output/libuv.so
+
+# Microsoft.Extensions.DependencyModel package is out-of-date in myget cdn. :( cache is not refreshed now. The package in cdn is still the one compiled at 2016/02/28.
+# The patch is compiled at 2016/03/15
+[ "1456695698" -eq `date +%s -r ${BUILD_DIR}/heroku_output/Microsoft.Extensions.DependencyModel.dll` ] && `yes | cp -rf ${BUILDPACK_DIR}/patch/Microsoft.Extensions.DependencyModel.dll ${BUILD_DIR}/heroku_output/Microsoft.Extensions.DependencyModel.dll`
 
 mkdir -p ${BUILD_DIR}/.profile.d
 cp -n ${BUILDPACK_DIR}/.profile.d/* ${BUILD_DIR}/.profile.d/
@@ -159,6 +110,6 @@ if [ -e ${SRC_DIR}/Procfile ]; then
 	cp ${SRC_DIR}/Procfile ${BUILD_DIR}
 else
 	cat << EOT >> ${BUILD_DIR}/Procfile
-web: ./kestrel --server.urls http://+:\$PORT &> err.txt > logs.txt
+web: \$HOME/heroku_output/${PROJECT_NAME} --server.urls http://+:\$PORT
 EOT
 fi
