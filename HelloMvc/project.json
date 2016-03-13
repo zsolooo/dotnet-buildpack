@@ -1,0 +1,38 @@
+{
+    "content": [
+        "wwwroot",
+        "Views"
+    ],
+    "compilationOptions": {
+        "preserveCompilationContext": true,
+        "emitEntryPoint": true
+    },
+    "dependencies" : {
+        "Microsoft.Extensions.Logging.Console": "1.0.0-*",
+        "Microsoft.AspNetCore.IISPlatformHandler": "1.0.0-*",
+        "Microsoft.AspNetCore.HttpOverrides": "1.0.0-*",
+        "Microsoft.AspNetCore.Mvc": "1.0.0-*",
+        "Microsoft.AspNetCore.StaticFiles": "1.0.0-*",
+        "Microsoft.AspNetCore.Diagnostics": "1.0.0-*",
+        "Microsoft.AspNetCore.Server.Kestrel": "1.0.0-*",
+        "System.Runtime.Serialization.Primitives": "4.1.0-*"
+    },
+    "frameworks": {
+      "netstandardapp1.3": {
+        "dependencies": {
+          "NETStandard.Library": "1.0.0-*"
+        },
+        "imports": [
+          "dnxcore50",
+          "portable-net45+win8"
+        ]
+      }
+    },
+
+    "tools": {
+      "dotnet-publish-iis": "1.0.0-*"
+    },
+    "scripts": {
+      "postpublish": "dotnet publish-iis --publish-folder %publish:OutputPath%"
+    }
+}
