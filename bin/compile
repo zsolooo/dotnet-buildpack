@@ -110,6 +110,6 @@ if [ -e ${SRC_DIR}/Procfile ]; then
 	cp ${SRC_DIR}/Procfile ${BUILD_DIR}
 else
 	cat << EOT >> ${BUILD_DIR}/Procfile
-web: \$HOME/heroku_output/${PROJECT_NAME} --server.urls http://+:\$PORT
+web: cd \$HOME/heroku_output && ./${PROJECT_NAME} --server.urls http://+:\$PORT
 EOT
 fi
