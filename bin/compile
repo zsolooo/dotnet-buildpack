@@ -100,6 +100,9 @@ echo "To fix some temporary bug"
 # Copy libuv.so :( it sometimes or offten lost. bug?
 #[ -f ${BUILD_DIR}/heroku_output/libuv.so ] || cp -ap ${HOME}/.nuget/packages/Microsoft.AspNetCore.Server.Kestrel/${LIBUV_VERSION}/runtimes/debian-x64/native/libuv.so ${BUILD_DIR}/heroku_output/libuv.so
 
+# It's too hard for me to read version exactly from project.lock.json. TODO
+[ -f ${BUILD_DIR}/heroku_output/libuv.so ] || cp -ap ${BUILDPACK_DIR}/patch/libuv.so ${BUILD_DIR}/heroku_output/libuv.so
+
 # Microsoft.Extensions.DependencyModel package is out-of-date in myget cdn. :( cache is not refreshed now. The package in cdn is still the one compiled at 2016/02/28.
 # The patch is compiled at 2016/03/15
 [ "1456695698" -eq `date +%s -r ${BUILD_DIR}/heroku_output/Microsoft.Extensions.DependencyModel.dll` ] && `yes | cp -rf ${BUILDPACK_DIR}/patch/Microsoft.Extensions.DependencyModel.dll ${BUILD_DIR}/heroku_output/Microsoft.Extensions.DependencyModel.dll`
