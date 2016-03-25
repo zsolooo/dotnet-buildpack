@@ -48,7 +48,7 @@ then
 fi
 
 # Install .NET CLI Nightly
-apt_install "http://dotnetcli.blob.core.windows.net/dotnet/beta/Installers/Latest/dotnet-ubuntu-x64.latest.deb"
+apt_install "http://dotnetcli.blob.core.windows.net/dotnet/beta/Installers/Latest/dotnet-host-ubuntu-x64.latest.deb" "http://dotnetcli.blob.core.windows.net/dotnet/beta/Installers/Latest/dotnet-sharedframework-ubuntu-x64.latest.deb" "http://dotnetcli.blob.core.windows.net/dotnet/beta/Installers/Latest/dotnet-sdk-ubuntu-x64.latest.deb"
 
 if [ -n "$(find ${SRC_DIR}/global.json)" ]; then
 	echo "Get version from global.json"
