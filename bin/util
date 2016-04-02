@@ -49,6 +49,10 @@ function apt_install(){
   
   local apt_options="-o debug::nolocking=true -o dir::cache=$apt_cache_dir -o dir::state=$apt_state_dir"
   
+  topic "Cleaning apt caches"
+  apt-get $apt_options clean | indent
+  
+  topic "Updating apt caches"
   apt-get $apt_options update | indent
 
   for package in "$@"; do
