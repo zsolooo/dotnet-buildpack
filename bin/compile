@@ -80,10 +80,6 @@ PROJECT_DIR_NAME=$(basename $PROJECT_DIR)
 PROJECT_NAME=$(ruby -rjson -e "j = JSON.parse(File.open('${PROJECT_DIR}/project.json','r:bom|utf-8').read); unless j['compilationOptions'].nil? ; puts j['compilationOptions']['outputName'];end")
 echo "${PROJECT_NAME:=$PROJECT_DIR_NAME}"
 
-# Adding libuv package. But I think it should be added automatically when referencing the Kestrel package. :(
-ruby -rjson -e "j = JSON.parse(File.open('${PROJECT_DIR}/project.json','r:bom|utf-8').read);if j['dependencies'] && j['dependencies']['Microsoft.AspNetCore.Server.Kestrel'] && j['dependencies']['Microsoft.AspNetCore.Internal.libuv-Linux'].nil? ;j['dependencies']['Microsoft.AspNetCore.Internal.libuv-Linux']={'version': '1.0.0-*','type': 'build'};end;print(j.to_json);" > ${PROJECT_DIR}/project.tmp.json
-mv ${PROJECT_DIR}/project.tmp.json ${PROJECT_DIR}/project.json
-
 dotnet restore ${PROJECT_JSON_FILE}
 
 # configure some npm command during building
@@ -95,17 +91,6 @@ echo "Publishing the app"
 dotnet publish ${PROJECT_JSON_FILE} --output ${BUILD_DIR}/heroku_output --configuration Release
 
 echo "Publish Successed"
-
-echo "To fix some temporary bug"
-# Copy libuv.so :( it sometimes or offten lost. bug?
-#[ -f ${BUILD_DIR}/heroku_output/libuv.so ] || cp -ap ${HOME}/.nuget/packages/Microsoft.AspNetCore.Server.Kestrel/${LIBUV_VERSION}/runtimes/debian-x64/native/libuv.so ${BUILD_DIR}/heroku_output/libuv.so
-
-# It's too hard for me to read version exactly from project.lock.json. TODO
-[ -f ${BUILD_DIR}/heroku_output/libuv.so ] || cp -ap ${BUILDPACK_DIR}/patch/libuv.so ${BUILD_DIR}/heroku_output/libuv.so
-
-# Microsoft.Extensions.DependencyModel package is out-of-date in myget cdn. :( cache is not refreshed now. The package in cdn is still the one compiled at 2016/02/28.
-# The patch is compiled at 2016/03/15
-[ "1456695698" -eq `date +%s -r ${BUILD_DIR}/heroku_output/Microsoft.Extensions.DependencyModel.dll` ] && `yes | cp -rf ${BUILDPACK_DIR}/patch/Microsoft.Extensions.DependencyModel.dll ${BUILD_DIR}/heroku_output/Microsoft.Extensions.DependencyModel.dll`
 
 mkdir -p ${BUILD_DIR}/.profile.d
 cp -n ${BUILDPACK_DIR}/.profile.d/* ${BUILD_DIR}/.profile.d/
