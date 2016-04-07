@@ -13,6 +13,8 @@ Example usage:
 
 The demo is : https://dotnetcli.herokuapp.com/ ([code source](https://github.com/noliar/dotnet-buildpack/tree/cli-sample))
 
+And the cli version of demo is: ![cli version](https://dotnetcli.herokuapp.com/badge)
+
 The buildpack will detect your app as ASP.NET 5 if it has `project.json`. If the source code you want to build contains multiple `project.json` files, you can use a [`.deployment`](https://github.com/projectkudu/kudu/wiki/Customizing-deployments) or set a `$PROJECT` config var to control which one is built.
 
 
