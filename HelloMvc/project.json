@@ -1,11 +1,9 @@
 {
   "publishOptions": {
-    "netcoreapp1.0": {
-      "imports": [
-        "wwwroot",
-        "Views"
-      ]
-    }
+    "include": [
+      "wwwroot",
+      "Views"
+    ]
   },
   "buildOptions": {
     "preserveCompilationContext": true,
