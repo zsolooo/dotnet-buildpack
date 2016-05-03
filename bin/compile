@@ -92,6 +92,13 @@ dotnet publish ${PROJECT_JSON_FILE} --output ${BUILD_DIR}/heroku_output --config
 
 echo "Publish Successed"
 
+# If it produced an executable file(may be just like a corehost), it'll throw exception using 'dotnet ./${PROJECT_NAME}.dll'
+if [[ -f $HOME/heroku_output/${PROJECT_NAME} ]]; then
+	PROC_CMD=$(echo "./${PROJECT_NAME}")
+else
+	PROC_CMD=$(echo "dotnet ./${PROJECT_NAME}.dll")
+fi
+
 mkdir -p ${BUILD_DIR}/.profile.d
 cp -n ${BUILDPACK_DIR}/.profile.d/* ${BUILD_DIR}/.profile.d/
 
@@ -99,6 +106,6 @@ if [ -e ${SRC_DIR}/Procfile ]; then
 	cp ${SRC_DIR}/Procfile ${BUILD_DIR}
 else
 	cat << EOT >> ${BUILD_DIR}/Procfile
-web: cd \$HOME/heroku_output && dotnet ./${PROJECT_NAME}.dll --server.urls http://+:\$PORT
+web: cd \$HOME/heroku_output && ${PROC_CMD} --server.urls http://+:\$PORT
 EOT
 fi
