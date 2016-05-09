@@ -47,9 +47,9 @@ namespace HelloMvc
         
         private string GetCliVersion()
         {
-            string stdout;
+            string stdout = string.Empty;
             RunProcessAndWaitForExit("dotnet", "--version", TimeSpan.FromSeconds(30), out stdout);
-            return stdout;
+            return stdout.Trim();
         }
         
         // source from dotnet/cli
