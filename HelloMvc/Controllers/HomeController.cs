@@ -23,23 +23,25 @@ namespace HelloMvc
         [ResponseCache(NoStore = true)]
         public ContentResult Badge()
         {
-            var str = @"<svg xmlns='http://www.w3.org/2000/svg' width='270' height='20'>
+            var str = @"<svg xmlns='http://www.w3.org/2000/svg' width='{1}' height='20'>
     <mask id='a'>
-        <rect width='270' height='20' rx='0' fill='#fff' />
+        <rect width='{1}' height='20' rx='0' fill='#fff' />
     </mask>
     <g mask='url(#a)'>
         <path fill='#555' d='M0 0h136v20H0z' />
-        <path fill='#007ec6' d='M136 0h134v20H136z' />
-        <path fill='url(#b)' d='M0 0h150v20H0z' />
+        <path fill='#007ec6' d='M136 0h{2}v20H136z' />
     </g>
-    <g fill='#fff' text-anchor='middle' font-family='DejaVu Sans,Verdana,Geneva,sans-serif' font-size='11'>
-        <text x='68' y='15' fill='#010101' fill-opacity='.3'>compatible cli version</text>
-        <text x='68' y='14'>compatible cli version</text>
-        <text x='205' y='15' fill='#010101' fill-opacity='.3'>{0}</text>
-        <text x='205' y='14'>{0}</text>
+    <g fill='#fff' font-family='DejaVu Sans,Verdana,Geneva,sans-serif' font-size='11'>
+        <text x='5' y='15' fill='#010101' fill-opacity='.3'>compatible cli version</text>
+        <text x='5' y='14'>compatible cli version</text>
+        <text x='140' y='15' fill='#010101' fill-opacity='.3'>{0}</text>
+        <text x='140' y='14'>{0}</text>
     </g>
 </svg>";
-            var content = string.Format(str, GetCliVersion());
+            var version = GetCliVersion();
+            var length = version.Length;
+            var svgLength = 7*length+146;
+            var content = string.Format(str, version, svgLength, svgLength - 136);
             return new ContentResult{Content = content, ContentType="image/svg+xml; charset=utf-8; api-version=2.2"};
         }
         
