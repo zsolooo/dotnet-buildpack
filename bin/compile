@@ -18,10 +18,11 @@ source $BUILDPACK_DIR/bin/util
 
 export_env_dir ${ENV_DIR}
 
-: ${CORE_VERSION:="1.0.0-preview1-002702"}
+: ${CORE_VERSION:="latest"}
 : ${CORE_SCRIPT_LOCATION:="https://raw.githubusercontent.com/dotnet/cli/rel/1.0.0/scripts/obtain/dotnet-install.sh"}
 : ${NODE_VERSION:="4.4.4"}
 : ${CORE_VERSION:="latest"}
+: ${CORE_CHANNEL:="beta"}
 
 if [ -n "$BUILD_DEBUG" ]; then
 	CORE_CONFIGURATION="Debug"
@@ -56,14 +57,23 @@ then
 fi
 
 # Install .NET Core
-echo "Get .NET Core Version from the PROJECT"
+echo "Get .NET Core Version and Channel from the PROJECT"
+DEPLOYMENT_FILE_LOCATION=${SRC_DIR}/.deployment
 if [ -n "$(find ${SRC_DIR}/global.json)" ]; then
 	echo "Get version from global.json"
 	CORE_VERSION=$(ruby -rjson -e "j = JSON.parse(File.open('${SRC_DIR}/global.json','r:bom|utf-8').read); unless j['sdk'].nil? ; puts j['sdk']['version'];end")
-	echo "${CORE_VERSION:=latest}"
+	if [ -z "${CORE_VERSION}" ]; then
+		CORE_VERSION="latest"
+	elif [[ "${CORE_VERSION}" != "latest" && "${CORE_VERSION}" > "1.0.0-preview1-002702" ]]; then
+		CORE_CHANNEL="preview"
+	fi
 fi
 
-: ${CORE_DOWNLOAD_LOCATION:="https://dotnetcli.blob.core.windows.net/dotnet/beta/Binaries/${CORE_VERSION}/dotnet-dev-ubuntu-x64.${CORE_VERSION}.tar.gz
+if [[ "${CORE_VERSION}" == "latest" && -e "${DEPLOYMENT_FILE_LOCATION}" && $(awk -F "=" '/channel/ {print $2}' ${DEPLOYMENT_FILE_LOCATION} | tr -d ' ') == "preview" ]]; then
+	CORE_CHANNEL="preview"
+fi
+
+: ${CORE_DOWNLOAD_LOCATION:="https://dotnetcli.blob.core.windows.net/dotnet/${CORE_CHANNEL}/Binaries/${CORE_VERSION}/dotnet-dev-ubuntu-x64.${CORE_VERSION}.tar.gz
 "}
 
 echo "Installing the dependencies"
@@ -80,7 +90,6 @@ ln -s ${BUILD_DIR}/dotnet /app
 export PATH="/app/dotnet:${PATH}"
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}"
 
-DEPLOYMENT_FILE_LOCATION=${SRC_DIR}/.deployment
 if [ -n "$PROJECT" ]; then
 	PROJECT_JSON_FILE=${SRC_DIR}/${PROJECT}
 	echo "Project file configured in PROJECT environment variable"
