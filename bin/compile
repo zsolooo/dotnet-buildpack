@@ -33,7 +33,7 @@ mkdir -p ${CACHE_DIR}
 DEPLOYMENT_FILE_LOCATION=${SRC_DIR}/.deployment
 
 # TODO: This test doesn't seen to actually work
-if [[ -n $(find . -type f -iname package.json -o -iname bower.json ) ]]
+if [[ -n $(find ${SRC_DIR} -type f -iname package.json -o -iname bower.json ) ]]
 then
 	echo "Installing Node"
 	NODE_PATH=`mktemp -d`
