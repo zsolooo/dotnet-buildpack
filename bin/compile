@@ -46,7 +46,7 @@ if [[ -n $(find ${SRC_DIR} -type f -iname package.json -o -iname bower.json) ]]
 then
 	echo "Installing Node"
 	NODE_PATH=`mktemp -d`
-	curl https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz -Ls \
+	curl https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz -Ls \
 		| tar xz -C ${NODE_PATH}
 	export PATH="${NODE_PATH}/node-v${NODE_VERSION}-linux-x64/bin:${PATH}"
 	echo "Installing bower"
