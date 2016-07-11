@@ -138,7 +138,7 @@ dotnet publish ${PROJECT_JSON_FILE} --output ${BUILD_DIR}/heroku_output --config
 
 echo "Publish Successed"
 
-SERVER_PORT="${PORT}"
+SERVER_PORT="\$PORT"
 
 if [[ -e ${DEPLOYMENT_FILE_LOCATION} && $(awk -F "=" '/use_reverse_proxy/ {print $2}' ${DEPLOYMENT_FILE_LOCATION} | tr -d ' ') == "true" ]]; then
 	SERVER_PORT="5000"
@@ -156,6 +156,6 @@ if [ -e ${SRC_DIR}/Procfile ]; then
 	cp ${SRC_DIR}/Procfile ${BUILD_DIR}
 else
 	cat << EOT >> ${BUILD_DIR}/Procfile
-web: cd \$HOME/heroku_output && ${REVERSE_PROXY_COMMAND} dotnet ./${PROJECT_NAME}.dll --server.urls http://+:\$SERVER_PORT ${CORE_ENVIRONMENT}
+web: cd \$HOME/heroku_output && ${REVERSE_PROXY_COMMAND} dotnet ./${PROJECT_NAME}.dll --server.urls http://+:${SERVER_PORT} ${CORE_ENVIRONMENT}
 EOT
 fi
